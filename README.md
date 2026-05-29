@@ -118,10 +118,11 @@ public class GetUserHandler : IQueryHandler<GetUserQuery, User>
 
 ### Mediator Usage and Setup:
 
-First, register the Mediator and your handlers in your `Program.cs` or `Startup.cs`:
+First, register the Mediator, the pipeline behaviors you need (for example validation), and your handlers/validators in your `Program.cs` or `Startup.cs`:
 
 ```csharp
 using PulseFlow.Application.Mediator;
+using PulseFlow.Application.Validation;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 
@@ -131,11 +132,18 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Register Mediator and scan for handlers in the current assembly
+        // Register pipeline behaviors (e.g. validation)
+        builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // Register Mediator and scan for handlers (and validators) in the current assembly
+        // This overload accepts assemblies: services.AddMediator(Assembly.GetExecutingAssembly())
         builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 
         // Or to scan all loaded assemblies:
         // builder.Services.AddMediator();
+
+        // Alternatively, register validators manually if you don't want automatic discovery:
+        // builder.Services.AddTransient<IValidator<CreateUserCommand>, CreateUserCommandValidator>();
 
         var app = builder.Build();
 
@@ -171,6 +179,11 @@ public class Program
     }
 }
 ```
+
+Notes
+- The `AddMediator(Assembly...)` overload scans the specified assemblies and registers discovered `ICommandHandler<>`, `IQueryHandler<,>` and (in this library version) implementations of `IValidator<>` so they can be resolved by the `ValidationBehavior`.
+- The parameterless `AddMediator()` overload scans all currently loaded assemblies.
+- You still need to register the pipeline behaviors you want to run in the pipeline (for example `ValidationBehavior`). If you prefer, you can register validators manually instead of relying on automatic discovery.
 
 ## Design Principles
 

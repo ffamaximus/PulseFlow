@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-05-13
+
+## [1.1.0] - 2026-05-28
+
+### Added
+- Public overload `AddMediator(this IServiceCollection, params Assembly[]?)` that accepts assemblies to scan (previously the overload was private). This allows consumers to call `services.AddMediator(Assembly.GetExecutingAssembly())` from `Program.cs`.
+- Automatic discovery and registration of `IValidator<>` implementations when using `AddMediator(Assembly...)`, so validators discovered in scanned assemblies are registered into DI and can be resolved by `ValidationBehavior`.
+
+### Changed
+- Documentation: Updated README to show how to register `ValidationBehavior` as an `IPipelineBehavior<,>` and to document the `AddMediator(Assembly...)` overload and the automatic validator discovery behavior.
+
+### Fixed
+- Adjusted `ServiceCollectionExtensions` visibility and registration logic so that pipeline behaviors and validators can be resolved properly at runtime.
+
+## [1.0.0] - 2026-05-13
 
 ### Added
 - Support for Stream Queries: Added `IStreamQuery<TResponse>`, `IStreamQueryHandler<TQuery, TResponse>`, and `Send<TResponse>(IStreamQuery<TResponse>)` method in `IMediator` and `Mediator` for handling asynchronous data streams.
@@ -21,3 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 - Stream queries do not currently apply pipeline behaviors to simplify implementation. Behaviors can be added in future versions if needed.
+
+

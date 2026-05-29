@@ -8,14 +8,17 @@ public class Result
 
     protected Result(bool isSuccess, string? error)
     {
-        if (isSuccess && error != null)
-            throw new InvalidOperationException("A successful result cannot contain an error.");
-
-        if (!isSuccess && error == null)
-            throw new InvalidOperationException("A failing result must contain an error.");
-
-        IsSuccess = isSuccess;
-        Error = error;
+        switch (isSuccess)
+        {
+            case true when error != null:
+                throw new InvalidOperationException("A successful result cannot contain an error.");
+            case false when error == null:
+                throw new InvalidOperationException("A failing result must contain an error.");
+            default:
+                IsSuccess = isSuccess;
+                Error = error;
+                break;
+        }
     }
 
     public static Result Ok() => new(true, null);
@@ -33,5 +36,5 @@ public class Result<T> : Result
     }
 
     public static Result<T> Ok(T value) => new(true, value, null);
-    public static new Result<T> Fail(string error) => new(false, default!, error);
+    public new static Result<T> Fail(string error) => new(false, default!, error);
 }

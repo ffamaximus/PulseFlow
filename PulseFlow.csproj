@@ -6,7 +6,7 @@
         <PackageId>PulseFlow</PackageId>
         <AssemblyName>PulseFlow</AssemblyName>
         <RootNamespace>PulseFlow</RootNamespace>
-        <Version>1.1.0</Version>
+        <Version>1.2.0</Version>
         <Authors>Andrés Mariño</Authors>
         <Company>Andrés Mariño</Company>
         <Description>Minimal, dependency-free PulseFlow kernel for .NET applications. Includes Result, Entity, AggregateRoot, ValueObject, Domain Events, and Mediator patterns.</Description>
@@ -23,7 +23,7 @@
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageReleaseNotes>
-            - Public overload `AddMediator(this IServiceCollection, params Assembly[]?)` that accepts assemblies to scan (previously the overload was private). This allows consumers to call `services.AddMediator(Assembly.GetExecutingAssembly())` from `Program.cs`.
+            - Adding FluentValidationBejavior
             - Automatic discovery and registration of `IValidator&lt;T&gt;` implementations when using `AddMediator(Assembly...)`, so validators discovered in scanned assemblies are registered into DI and can be resolved by `ValidationBehavior`.
             - Documentation: Updated README to show how to register `ValidationBehavior` as an `IPipelineBehavior&lt;TRequest, TResponse&gt;` and to document the `AddMediator(Assembly...)` overload and the automatic validator discovery behavior.
         </PackageReleaseNotes>

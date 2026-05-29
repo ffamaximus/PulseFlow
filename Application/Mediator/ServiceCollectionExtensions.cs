@@ -1,8 +1,8 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using PulseFlow.Application.Commands;
 using PulseFlow.Application.Queries;
 using PulseFlow.Application.Validation;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace PulseFlow.Application.Mediator;
 
@@ -73,7 +73,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddFluentValidationIntegration(this IServiceCollection services)
     {
         // Register a pipeline behavior that will invoke any FluentValidation validators found in DI at runtime
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PulseFlow.Application.Validation.FluentValidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(FluentValidationBehavior<,>));
         return services;
     }
 }

@@ -1,3 +1,4 @@
 ﻿namespace PulseFlow.Application.Queries;
 
-public interface IStreamQuery<TResponse> { }
+/// <summary>A query whose results are streamed as an <see cref="IAsyncEnumerable{T}"/>.</summary>
+public interface IStreamQuery<TResponse> : IBaseQuery { }

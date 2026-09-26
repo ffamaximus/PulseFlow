@@ -1,7 +1,13 @@
 ﻿namespace PulseFlow.Application.Commands;
 
-public interface ICommandHandler<TCommand>
+public interface ICommandHandler<in TCommand>
     where TCommand : ICommand
 {
-    Task<Result> Handle(TCommand command, CancellationToken cancellationToken = default);
+    ValueTask<Result> Handle(TCommand command, CancellationToken cancellationToken);
+}
+
+public interface ICommandHandler<in TCommand, TResponse>
+    where TCommand : ICommand<TResponse>
+{
+    ValueTask<Result<TResponse>> Handle(TCommand command, CancellationToken cancellationToken);
 }

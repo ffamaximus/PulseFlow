@@ -6,11 +6,11 @@
         <PackageId>PulseFlow</PackageId>
         <AssemblyName>PulseFlow</AssemblyName>
         <RootNamespace>PulseFlow</RootNamespace>
-        <Version>1.2.0</Version>
+        <Version>2.0.0-preview.1</Version>
         <Authors>Andrés Mariño</Authors>
         <Company>Andrés Mariño</Company>
-        <Description>Minimal, dependency-free PulseFlow kernel for .NET applications. Includes Result, Entity, AggregateRoot, ValueObject, Domain Events, and Mediator patterns.</Description>
-        <PackageTags>clean-architecture;ddd;cqrs;kernel;architecture;domain-driven-design;mediator</PackageTags>
+        <Description>CQRS mediator for .NET 8, 9 and 10 with command/query-aware pipelines, typed Result and Error, ValueTask end to end, validation, notifications and DDD primitives (Entity, AggregateRoot, ValueObject, Domain Events).</Description>
+        <PackageTags>clean-architecture;ddd;cqrs;mediator-pattern;result;kernel;architecture;domain-driven-design;mediator</PackageTags>
         <RepositoryUrl>https://github.com/ffamaximus/clean-architecture-kernel-core</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <PackageProjectUrl>https://github.com/ffamaximus/clean-architecture-kernel-core</PackageProjectUrl>
@@ -19,13 +19,12 @@
         <NoWarn>1591</NoWarn>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <PackageIcon>icon.png</PackageIcon>
+        <!-- tests/ lives under this folder: keep its sources out of the library build. -->
+        <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageReleaseNotes>
-            - Adding FluentValidationBejavior
-            - Automatic discovery and registration of `IValidator&lt;T&gt;` implementations when using `AddMediator(Assembly...)`, so validators discovered in scanned assemblies are registered into DI and can be resolved by `ValidationBehavior`.
-            - Documentation: Updated README to show how to register `ValidationBehavior` as an `IPipelineBehavior&lt;TRequest, TResponse&gt;` and to document the `AddMediator(Assembly...)` overload and the automatic validator discovery behavior.
+            2.0.0: ICommand&lt;TResponse&gt;, typed Error and richer Result, command-only and query-only pipeline behaviors, ValueTask end to end, async FluentValidation, sequential Publish by default. Breaking changes: see CHANGELOG.md.
         </PackageReleaseNotes>
     </PropertyGroup>
 
@@ -33,10 +32,6 @@
         <PackageReference Include="FluentValidation" Version="12.1.1" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="Domain\Events\"/>
     </ItemGroup>
 
     <ItemGroup>

@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased] - 2.0.0-preview.1
+
+### Added
+- `ICommand<TResponse>` / `ICommandHandler<TCommand, TResponse>`: commands that return a value (e.g. the id of a created entity).
+- `IBaseCommand` / `IBaseQuery` markers, and CQRS-aware behaviors: `ICommandPipelineBehavior<,>` (commands only) and `IQueryPipelineBehavior<,>` (queries only). Registration helpers `AddPipelineBehavior`, `AddCommandBehavior`, `AddQueryBehavior`.
+- `Error` record (`Code`, `Message`, `ErrorType`, `ValidationErrors`, `ToValidationDictionary()`) and `ErrorType` enum (serialized as a string).
+- System.Text.Json converter for `Result` / `Result<T>` (`{ isSuccess, value | error }`), for both serialization and deserialization.
+- `RequestValidationResult.AddError(property, message)`.
+- `Result`: implicit conversions from `Error` and from `T`, `Match`, `Map`, `Bind`, nullable annotations (`Error` is non-null when `IsFailure`), cached `Result.Ok()`.
+- `IFailureFactory<TSelf>` so behaviors can create failed results without reflection.
+- `MediatorOptions` with `PublishStrategy` (`Sequential` by default, `Parallel`, `StopOnException`), configurable through the new `AddMediator(Action<MediatorOptions>, params Assembly[])` overload.
+- `IDomainEventDispatcher` interface; `DispatchAsync` now accepts a `CancellationToken`.
+- `Result<T>.ValueOrDefault`.
+- Test project `tests/PulseFlow.Tests` (xUnit, net8.0/net9.0/net10.0).
+
+### Changed
+- **Breaking:** handlers, behaviors, notification and domain event handlers use `ValueTask` instead of `Task`; `IMediator.Send`/`Publish` return `ValueTask`.
+- **Breaking:** `IPipelineBehavior.Handle(request, next, ct)` with `RequestHandlerDelegate<TResponse>` (same shape as MediatR / Mediator).
+- **Breaking:** `Result.Error` is an `Error` instead of `string`. `Result.Fail(string)` is kept as a shortcut.
+- **Breaking:** `IMediator.CreateStream(query)` returns `IAsyncEnumerable<T>` directly (replaces `Task<IAsyncEnumerable<T>> Send(streamQuery)`).
+- **Breaking:** validation behaviors return `Error.Validation(failures)` instead of a JSON string, and require `Result`/`Result<T>` responses.
+- **Breaking:** `IValidator<T>` → `IRequestValidator<T>`, `ValidationResult` → `RequestValidationResult`, `ValidationFailure` → `ValidationError` (record); `Error.ValidationFailures` → `Error.ValidationErrors`. Avoids ambiguous references when FluentValidation is imported in the same file.
+- **Breaking (removed):** `IRequestPreProcessor`, `IRequestPostProcessor`, `Unit` and `ValidationException` were public but never used by the pipeline.
+- `FluentValidationBehavior` uses the FluentValidation API directly and validates asynchronously (`MustAsync` rules no longer throw).
+- No delegate allocation when a request has no behaviors.
+- `ExceptionBehavior` no longer logs cancellations as errors; `PerformanceBehavior` also measures failed requests.
+- **Breaking:** `Publish` runs handlers sequentially by default instead of in parallel. Every handler runs; one failure is rethrown as-is, several are thrown as `AggregateException`.
+- **Breaking:** `Result<T>.Value` throws `InvalidOperationException` when the result is a failure (it used to return `default`). Serialization is handled by the new JSON converter, so a failed result serializes without touching `Value`.
+- **Breaking:** `ValueObject` equality now also compares the concrete type; added `==`, `!=` and `IEquatable<ValueObject>`.
+- `AddMediator` also scans `IStreamQueryHandler<,>`, `INotificationHandler<>` and `IDomainEventHandler<>`, registers `IDomainEventDispatcher`, uses `TryAdd*` (idempotent) and skips open generic handler classes.
+- `DomainEventDispatcher` uses cached typed wrappers instead of `dynamic`.
+
+### Fixed
+- `Publish` with `Parallel`: a handler throwing synchronously prevented the remaining handlers from starting.
+- Notification and stream query handlers were never registered by `AddMediator`.
+- `DomainEventDispatcher` failed with `internal` handlers or explicit interface implementations.
+- Command, query and stream wrappers shared one cache keyed only by request type.
+- `Send(IStreamQuery)` was declared `async` without awaiting (CS1998).
+
 ## [1.1.0] - 2026-05-28
 
 ### Added

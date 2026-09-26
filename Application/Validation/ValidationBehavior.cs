@@ -1,53 +1,36 @@
-﻿using System.Reflection;
-using System.Text.Json;
-using System.Linq;
-using System.Collections.Generic;
-using PulseFlow.Application.Mediator;
+﻿using PulseFlow.Application.Mediator;
 
 namespace PulseFlow.Application.Validation;
 
+/// <summary>
+/// Runs every registered <see cref="IRequestValidator{T}"/> for the request. On failure the handler is not called and a
+/// failed result carrying <see cref="Error.Validation(IEnumerable{ValidationError},string,string)"/> is returned.
+/// </summary>
 public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TResponse : IFailureFactory<TResponse>
 {
-    private readonly IEnumerable<IValidator<TRequest>> _validators;
+    private readonly IRequestValidator<TRequest>[] _validators;
 
-    public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators)
+    public ValidationBehavior(IEnumerable<IRequestValidator<TRequest>> validators)
     {
-        _validators = validators;
+        _validators = validators as IRequestValidator<TRequest>[] ?? validators.ToArray();
     }
 
-    public async Task<TResponse> Handle(
-        TRequest request,
-        CancellationToken cancellationToken,
-        Func<Task<TResponse>> next)
+    public ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        var failures = _validators
-            .Select(v => v.Validate(request))
-            .SelectMany(r => r.Errors)
-            .ToList();
+        if (_validators.Length == 0)
+            return next();
 
-        if (failures.Count == 0) return await next();
-
-        // Serialize failures into { errors: { PropertyName: ["msg1","msg2"] } } payload
-        var errorsByProperty = failures
-            .GroupBy(f => f.PropertyName)
-            .ToDictionary(g => g.Key, g => g.Select(f => f.ErrorMessage).ToList());
-
-        var payload = JsonSerializer.Serialize(new { errors = errorsByProperty });
-
-        // If the pipeline expects a non-generic Result
-        if (typeof(TResponse) == typeof(Result))
+        List<ValidationError>? failures = null;
+        foreach (var validator in _validators)
         {
-            return (TResponse)(object)Result.Fail(payload);
+            var result = validator.Validate(request);
+            if (!result.IsValid)
+                (failures ??= new List<ValidationError>()).AddRange(result.Errors);
         }
 
-        // If the pipeline expects Result<T>
-        if (!typeof(TResponse).IsGenericType || typeof(TResponse).GetGenericTypeDefinition() != typeof(Result<>))
-            throw new ValidationException(failures);
-
-        var genericArg = typeof(TResponse).GenericTypeArguments[0];
-        var resultGeneric = typeof(Result<>).MakeGenericType(genericArg);
-        var failMethod = resultGeneric.GetMethod("Fail", BindingFlags.Public | BindingFlags.Static);
-        var failed = failMethod!.Invoke(null, new object[] { payload });
-        return (TResponse)failed!;
+        return failures is null
+            ? next()
+            : ValueTask.FromResult(TResponse.CreateFailure(Error.Validation(failures)));
     }
 }

@@ -12,18 +12,17 @@ public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TReque
         _logger = logger;
     }
 
-    public async Task<TResponse> Handle(
-        TRequest request,
-        CancellationToken cancellationToken,
-        Func<Task<TResponse>> next)
+    public async ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
-
-        var response = await next();
-
-        sw.Stop();
-        _logger.LogInformation("{RequestType} executed in {ElapsedMilliseconds}ms", typeof(TRequest).Name, sw.ElapsedMilliseconds);
-
-        return response;
+        var start = Stopwatch.GetTimestamp();
+        try
+        {
+            return await next().ConfigureAwait(false);
+        }
+        finally
+        {
+            var elapsed = Stopwatch.GetElapsedTime(start);
+            _logger.LogInformation("{RequestType} executed in {ElapsedMilliseconds}ms", typeof(TRequest).Name, (long)elapsed.TotalMilliseconds);
+        }
     }
 }

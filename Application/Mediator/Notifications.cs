@@ -2,8 +2,8 @@
 
 public interface INotification { }
 
-public interface INotificationHandler<TNotification>
+public interface INotificationHandler<in TNotification>
     where TNotification : INotification
 {
-    Task Handle(TNotification notification, CancellationToken cancellationToken);
+    ValueTask Handle(TNotification notification, CancellationToken cancellationToken);
 }

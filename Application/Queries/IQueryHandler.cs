@@ -1,7 +1,7 @@
 ﻿namespace PulseFlow.Application.Queries;
 
-public interface IQueryHandler<TQuery, TResponse>
+public interface IQueryHandler<in TQuery, TResponse>
     where TQuery : IQuery<TResponse>
 {
-    Task<Result<TResponse>> Handle(TQuery query, CancellationToken cancellationToken = default);
+    ValueTask<Result<TResponse>> Handle(TQuery query, CancellationToken cancellationToken);
 }

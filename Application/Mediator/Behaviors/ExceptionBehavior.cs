@@ -11,14 +11,15 @@ public class ExceptionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest
         _logger = logger;
     }
 
-    public async Task<TResponse> Handle(
-        TRequest request,
-        CancellationToken cancellationToken,
-        Func<Task<TResponse>> next)
+    public async ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
         try
         {
-            return await next();
+            return await next().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // the caller cancelled: not an error
         }
         catch (Exception ex)
         {

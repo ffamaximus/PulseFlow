@@ -32,7 +32,8 @@ through the pipeline, every handler returns an explicit `Result` with a typed `E
 ```bash
 dotnet add package PulseFlow
 
-# Optional: FluentValidation integration
+# Optional integrations
+dotnet add package PulseFlow.AspNetCore        # minimal API endpoints + ProblemDetails
 dotnet add package PulseFlow.FluentValidation
 ```
 
@@ -133,22 +134,39 @@ plus `IMediator` and `IDomainEventDispatcher`. It is safe to call more than once
 the parameterless overload only scans assemblies already loaded. Open generic handler classes are skipped (register them manually).
 
 ```csharp
-app.MapPost("/users", async (CreateUser command, IMediator mediator, CancellationToken ct) =>
-{
-    var result = await mediator.Send(command, ct);
-    return result.Match(
-        id => Results.Created($"/users/{id}", id),
-        error => error.Type switch
-        {
-            ErrorType.Validation => Results.ValidationProblem(error.ToValidationDictionary()),
-            ErrorType.NotFound => Results.NotFound(),
-            ErrorType.Conflict => Results.Conflict(error.Message),
-            _ => Results.Problem(error.Message)
-        });
-});
-
+var result = await mediator.Send(new CreateUser("a@b.com"), ct);          // Result<Guid>
 await foreach (var user in mediator.CreateStream(new ExportUsers(), ct)) { /* ... */ }
 ```
+
+## ASP.NET Core
+
+With the `PulseFlow.AspNetCore` package, commands and queries become minimal API endpoints in one line, and every
+`Error` becomes an RFC 9457 ProblemDetails response with the right status code:
+
+```csharp
+using PulseFlow.AspNetCore;
+
+builder.Services.AddProblemDetails();   // optional, recommended
+
+app.MapCommand<CreateUser, Guid>("/users", id => $"/users/{id}");   // POST (JSON body) -> 201 Created + Location
+app.MapCommand<DeactivateUser>("/users/{id}", HttpMethods.Delete);  // DELETE (route)     -> 204 No Content
+app.MapQuery<GetUser, UserDto>("/users/{id}");                       // GET (route/query)  -> 200 OK
+
+// Hand-written endpoints use the same mapping:
+app.MapPut("/users/{id}", async (Guid id, RenameBody body, IMediator mediator, CancellationToken ct) =>
+    (await mediator.Send(new RenameUser(id, body.Name), ct)).ToHttpResult());
+```
+
+| `ErrorType` | Status | Body |
+|---|---|---|
+| `Validation` | 400 | `HttpValidationProblemDetails` with `errors` per property |
+| `Failure` | 400 | ProblemDetails |
+| `NotFound` / `Conflict` | 404 / 409 | ProblemDetails |
+| `Unauthorized` / `Forbidden` | 401 / 403 | ProblemDetails |
+
+Every ProblemDetails carries `errorCode` and `errorType` extensions. Customize with
+`builder.Services.AddPulseFlowHttp(o => o.StatusCodeMap[ErrorType.Validation] = 422)`. Endpoints return the
+`RouteHandlerBuilder`, so `.RequireAuthorization()`, `.WithName()`, `.WithTags()` and OpenAPI metadata work as usual.
 
 ## Pipeline behaviors
 
@@ -259,6 +277,8 @@ order.ClearEvents();
 
 ## Migrating from 1.x
 
+Step-by-step guide with before/after examples: **[MIGRATION.md](MIGRATION.md)**. Summary:
+
 -   Handlers and behaviors return `ValueTask` instead of `Task`.
 -   `IPipelineBehavior.Handle(request, next, ct)` — `next` is a `RequestHandlerDelegate<TResponse>` and comes before the token.
 -   `Result.Error` is an `Error` instead of a `string`; `Result.Fail(string)` still works.
@@ -282,7 +302,6 @@ order.ClearEvents();
 ## Roadmap
 
 -   **Source generator:** reflection-free dispatch, Native AOT support and compile-time diagnostics (missing or duplicate handlers).
--   **ASP.NET Core integration:** `MapCommand` / `MapQuery` endpoints and automatic `Result` → `ProblemDetails` mapping.
 -   **Pre/post processors, exception handlers and stream pipeline behaviors.**
 -   **Observability:** OpenTelemetry traces and metrics.
 -   **Domain events:** EF Core `SaveChanges` interceptor and outbox.

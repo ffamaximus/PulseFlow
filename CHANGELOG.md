@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased] - 2.0.0-preview.2
+## [Unreleased] - 2.1.0-preview.1
+
+### Added
+- New package **PulseFlow.AspNetCore**:
+  - `MapCommand<TCommand>`, `MapCommand<TCommand, TResponse>` (optional `201 Created` with `Location`) and `MapQuery<TQuery, TResponse>` minimal API endpoints. POST/PUT/PATCH bind the JSON body; GET/DELETE bind route and query string. They return `RouteHandlerBuilder` and declare OpenAPI response metadata.
+  - `Result.ToHttpResult()`, `Result<T>.ToHttpResult()`, `ToCreatedHttpResult(location)` and `Error.ToHttpResult()` for hand-written endpoints.
+  - Errors become RFC 9457 ProblemDetails (`HttpValidationProblemDetails` for validation) with `errorCode` / `errorType` extensions, written through `IProblemDetailsService` when `AddProblemDetails()` is registered.
+  - `AddPulseFlowHttp(options)` to customize the status code per `ErrorType` and the extensions.
+
+## [2.0.0-preview.2] - 2026-09-26
+
+Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 
 ### Packaging
 - New package **PulseFlow.FluentValidation** containing `FluentValidationBehavior` and `AddFluentValidationIntegration()` (same namespaces as before). The core package no longer depends on FluentValidation.

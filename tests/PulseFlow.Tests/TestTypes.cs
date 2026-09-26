@@ -190,6 +190,28 @@ public sealed class TakeTwoStreamBehavior<TRequest, TResponse>(Probe probe) : IS
     }
 }
 
+// ---------- Telemetry (2.2): dedicated types so parallel tests cannot interfere ----------
+
+public sealed record TelemetryPing(int Value) : ICommand<int>;
+
+public sealed class TelemetryPingHandler : ICommandHandler<TelemetryPing, int>
+{
+    public ValueTask<Result<int>> Handle(TelemetryPing command, CancellationToken cancellationToken)
+        => command.Value switch
+        {
+            < 0 => throw new InvalidOperationException("boom"),
+            0 => ValueTask.FromResult<Result<int>>(Error.NotFound("Ping.NotFound", "Nothing to ping.")),
+            _ => ValueTask.FromResult<Result<int>>(command.Value)
+        };
+}
+
+public sealed record TelemetryNotice : INotification;
+
+public sealed class TelemetryNoticeHandler : INotificationHandler<TelemetryNotice>
+{
+    public ValueTask Handle(TelemetryNotice notification, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+}
+
 // ---------- Notifications discovered by scanning ----------
 
 public sealed record ThingCreated(string Name) : INotification;

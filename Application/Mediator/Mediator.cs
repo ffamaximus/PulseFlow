@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using PulseFlow.Application.Commands;
@@ -32,7 +32,9 @@ public class Mediator : IMediator
         var wrapper = CommandWrappers.GetOrAdd(command.GetType(), static t =>
             (CommandWrapperBase)Activator.CreateInstance(typeof(CommandWrapper<>).MakeGenericType(t))!);
 
-        return wrapper.Handle(command, _provider, _options, cancellationToken);
+        return MediatorTelemetry.IsEnabled
+            ? SendInstrumented(wrapper, command, cancellationToken)
+            : wrapper.Handle(command, _provider, _options, cancellationToken);
     }
 
     public ValueTask<Result<TResponse>> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
@@ -42,7 +44,9 @@ public class Mediator : IMediator
         var wrapper = (ResponseWrapperBase<TResponse>)CommandWithResponseWrappers.GetOrAdd((command.GetType(), typeof(TResponse)), static key =>
             Activator.CreateInstance(typeof(CommandWrapper<,>).MakeGenericType(key.Request, key.Response))!);
 
-        return wrapper.Handle(command, _provider, _options, cancellationToken);
+        return MediatorTelemetry.IsEnabled
+            ? SendInstrumented(wrapper, command, MediatorTelemetry.Command, cancellationToken)
+            : wrapper.Handle(command, _provider, _options, cancellationToken);
     }
 
     public ValueTask<Result<TResponse>> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
@@ -52,7 +56,9 @@ public class Mediator : IMediator
         var wrapper = (ResponseWrapperBase<TResponse>)QueryWrappers.GetOrAdd((query.GetType(), typeof(TResponse)), static key =>
             Activator.CreateInstance(typeof(QueryWrapper<,>).MakeGenericType(key.Request, key.Response))!);
 
-        return wrapper.Handle(query, _provider, _options, cancellationToken);
+        return MediatorTelemetry.IsEnabled
+            ? SendInstrumented(wrapper, query, MediatorTelemetry.Query, cancellationToken)
+            : wrapper.Handle(query, _provider, _options, cancellationToken);
     }
 
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamQuery<TResponse> query, CancellationToken cancellationToken = default)
@@ -62,7 +68,9 @@ public class Mediator : IMediator
         var wrapper = (StreamWrapperBase<TResponse>)StreamWrappers.GetOrAdd((query.GetType(), typeof(TResponse)), static key =>
             Activator.CreateInstance(typeof(StreamQueryWrapper<,>).MakeGenericType(key.Request, key.Response))!);
 
-        return wrapper.Handle(query, _provider, _options, cancellationToken);
+        return MediatorTelemetry.IsEnabled
+            ? CreateStreamInstrumented(wrapper, query, cancellationToken)
+            : wrapper.Handle(query, _provider, _options, cancellationToken);
     }
 
     public ValueTask Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
@@ -73,8 +81,32 @@ public class Mediator : IMediator
         var wrapper = PublishWrappers.GetOrAdd(notification.GetType(), static t =>
             (PublishWrapperBase)Activator.CreateInstance(typeof(PublishWrapper<>).MakeGenericType(t))!);
 
-        return wrapper.Handle(notification, _provider, _options.PublishStrategy, cancellationToken);
+        return MediatorTelemetry.IsEnabled
+            ? PublishInstrumented(wrapper, notification, cancellationToken)
+            : wrapper.Handle(notification, _provider, _options.PublishStrategy, cancellationToken);
     }
+
+    #region Telemetry
+
+    // Separate methods so the closures below are only allocated when a listener is attached.
+
+    private ValueTask<Result> SendInstrumented(CommandWrapperBase wrapper, ICommand command, CancellationToken ct)
+        => MediatorTelemetry.Track(MediatorTelemetry.Command, command.GetType(),
+            () => wrapper.Handle(command, _provider, _options, ct));
+
+    private ValueTask<Result<TResponse>> SendInstrumented<TResponse>(ResponseWrapperBase<TResponse> wrapper, object request, string kind, CancellationToken ct)
+        => MediatorTelemetry.Track(kind, request.GetType(),
+            () => wrapper.Handle(request, _provider, _options, ct));
+
+    private IAsyncEnumerable<TResponse> CreateStreamInstrumented<TResponse>(StreamWrapperBase<TResponse> wrapper, object query, CancellationToken ct)
+        => MediatorTelemetry.TrackStream(query.GetType(),
+            () => wrapper.Handle(query, _provider, _options, ct), ct);
+
+    private ValueTask PublishInstrumented(PublishWrapperBase wrapper, object notification, CancellationToken ct)
+        => MediatorTelemetry.TrackNotification(notification.GetType(),
+            () => wrapper.Handle(notification, _provider, _options.PublishStrategy, ct));
+
+    #endregion
 
     #region Pipeline
 

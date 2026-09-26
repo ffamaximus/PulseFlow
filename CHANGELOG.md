@@ -6,7 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased] - 2.1.0-preview.1
+## [Unreleased] - 2.2.0-preview.1
+
+### Added
+- Built-in observability with the standard .NET APIs (no new dependency):
+  - `ActivitySource` "PulseFlow": one span per command, query, notification and stream (`command CreateOrder`, ...), nested under the current activity, with `pulseflow.request.kind`, `pulseflow.request.type`, `pulseflow.outcome`, `error.type`, `pulseflow.error.code` and `pulseflow.stream.items` tags. Exceptions mark the span as error; failed `Result`s are tagged but not marked as errors.
+  - `Meter` "PulseFlow" with the `pulseflow.request.duration` histogram (seconds).
+  - `PulseFlowDiagnostics` constants to register them: `AddSource(PulseFlowDiagnostics.ActivitySourceName)`, `AddMeter(PulseFlowDiagnostics.MeterName)`.
+  - When no listener is attached the mediator keeps its uninstrumented fast path (no allocations added).
+
+## [2.1.0-preview.1]
 
 ### Added
 - New package **PulseFlow.AspNetCore**:

@@ -18,6 +18,7 @@ through the pipeline, every handler returns an explicit `Result` with a typed `E
     behaviors that run **only for commands** (transactions, idempotency) or **only for queries** (caching).
 -   **Typed results:** `Result` / `Result<T>` with an `Error` (code, message, `ErrorType`, structured validation failures),
     implicit conversions, `Match`, `Map` and `Bind`.
+-   **Observability built in:** OpenTelemetry-ready traces and metrics for every request, zero cost when disabled.
 -   **Low allocation:** `ValueTask` end to end, cached dispatch wrappers, and no delegate allocation when a request has no behaviors.
 -   **Validation built in:** PulseFlow validators or FluentValidation (async rules supported), short-circuiting with a
     `Validation` error instead of exceptions.
@@ -261,6 +262,27 @@ await mediator.Publish(new UserCreated(id), ct);
 `PublishStrategy.Sequential` (default) runs every handler in order; `Parallel` runs them concurrently (do not use it
 with a shared `DbContext`); `StopOnException` stops at the first failure.
 
+## Observability (OpenTelemetry)
+
+PulseFlow emits a span and a duration measurement for every command, query, notification and stream, using the
+standard .NET `ActivitySource` and `Meter` APIs (no extra package). Turn them on in your OpenTelemetry setup:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(t => t.AddSource(PulseFlowDiagnostics.ActivitySourceName))   // "PulseFlow"
+    .WithMetrics(m => m.AddMeter(PulseFlowDiagnostics.MeterName));            // "PulseFlow"
+```
+
+| Signal | Name | Tags |
+|---|---|---|
+| Span | `command CreateOrder`, `query GetOrder`, `notification OrderPlaced`, `stream ExportOrders` | `pulseflow.request.kind`, `pulseflow.request.type`, `pulseflow.outcome`, `error.type`, `pulseflow.error.code`, `pulseflow.stream.items` |
+| Histogram (s) | `pulseflow.request.duration` | `pulseflow.request.kind`, `pulseflow.request.type`, `pulseflow.outcome`, `error.type` |
+
+`pulseflow.outcome` is `success`, `failure` (a failed `Result`; `error.type` holds its `ErrorType`), `exception`
+(the span is marked as error) or `incomplete` (a stream that was not fully consumed). Spans nest under the current
+activity (for example the incoming HTTP request), and handler work shows up as their children. When nothing listens,
+the mediator keeps its uninstrumented fast path.
+
 ## Domain primitives
 
 ```csharp
@@ -312,7 +334,6 @@ Step-by-step guide with before/after examples: **[MIGRATION.md](MIGRATION.md)**.
 ## Roadmap
 
 -   **Source generator:** reflection-free dispatch, Native AOT support and compile-time diagnostics (missing or duplicate handlers).
--   **Observability:** OpenTelemetry traces and metrics.
 -   **Domain events:** EF Core `SaveChanges` interceptor and outbox.
 
 ## Contributing

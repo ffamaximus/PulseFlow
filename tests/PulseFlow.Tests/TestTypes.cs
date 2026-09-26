@@ -212,6 +212,38 @@ public sealed class TelemetryNoticeHandler : INotificationHandler<TelemetryNotic
     public ValueTask Handle(TelemetryNotice notification, CancellationToken cancellationToken) => ValueTask.CompletedTask;
 }
 
+// ---------- Exception handlers (2.1) ----------
+
+public sealed record ExplodingCommand(string Kind) : ICommand<int>;
+
+public sealed class ExplodingCommandHandler(Probe probe) : ICommandHandler<ExplodingCommand, int>
+{
+    public ValueTask<Result<int>> Handle(ExplodingCommand command, CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"handler:{command.Kind}");
+        cancellationToken.ThrowIfCancellationRequested();
+        return command.Kind switch
+        {
+            "invalid" => throw new InvalidOperationException("invalid state"),
+            "argument" => throw new ArgumentException("bad argument"),
+            _ => ValueTask.FromResult<Result<int>>(1)
+        };
+    }
+}
+
+// Open generic: turns InvalidOperationException into a typed Conflict failure, lets anything else through.
+public sealed class ConflictOnInvalidOperation<TRequest, TResponse>(Probe probe) : IRequestExceptionHandler<TRequest, TResponse>
+    where TResponse : IFailureFactory<TResponse>
+{
+    public ValueTask<ExceptionHandlingResult<TResponse>> Handle(TRequest request, Exception exception, CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"exception-handler:{exception.GetType().Name}");
+        return ValueTask.FromResult(exception is InvalidOperationException
+            ? ExceptionHandlingResult<TResponse>.Handle(TResponse.CreateFailure(Error.Conflict("State.Invalid", exception.Message)))
+            : ExceptionHandlingResult<TResponse>.NotHandled);
+    }
+}
+
 // ---------- Notifications discovered by scanning ----------
 
 public sealed record ThingCreated(string Name) : INotification;

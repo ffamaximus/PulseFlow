@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow.FluentValidation"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow.AspNetCore", "integrations\PulseFlow.AspNetCore\PulseFlow.AspNetCore.csproj", "{3F30F325-6D78-4EE6-97C0-46E58E495C18}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow.Benchmarks", "benchmarks\PulseFlow.Benchmarks\PulseFlow.Benchmarks.csproj", "{C8473706-8FBC-4E6B-9DE6-44A2604614CD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{3F30F325-6D78-4EE6-97C0-46E58E495C18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F30F325-6D78-4EE6-97C0-46E58E495C18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F30F325-6D78-4EE6-97C0-46E58E495C18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8473706-8FBC-4E6B-9DE6-44A2604614CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8473706-8FBC-4E6B-9DE6-44A2604614CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8473706-8FBC-4E6B-9DE6-44A2604614CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8473706-8FBC-4E6B-9DE6-44A2604614CD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

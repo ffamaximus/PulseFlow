@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      Compares PulseFlow with MediatR and Mediator (source generator) on identical workloads.
+      How to run them and how to read the results: benchmarks/README.md
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+        <IsPackable>false</IsPackable>
+        <EnablePackageValidation>false</EnablePackageValidation>
+        <ServerGarbageCollection>false</ServerGarbageCollection>
+        <!-- Stream handlers are synchronous iterators on purpose (measure dispatch, not I/O). -->
+        <NoWarn>$(NoWarn);CS1998</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+        <PackageReference Include="MediatR" Version="14.2.0" />
+        <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+        <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <!-- Same (highest) version for every contestant; PulseFlow itself only needs the abstractions. -->
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\PulseFlow.csproj" />
+    </ItemGroup>
+
+</Project>

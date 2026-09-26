@@ -288,12 +288,12 @@ builder.Services.AddFluentValidationIntegration();
 
 ## 7. Removed APIs
 
-These were public in 1.x but the pipeline never invoked them:
+These were public in 1.x but the pipeline never invoked them (processors keep their name with a new signature):
 
 | Removed | Replacement |
 |---|---|
-| `IRequestPreProcessor<TRequest>` (Task-based) | Back in 2.1 with `ValueTask` and actually invoked: `ValueTask Process(TRequest, CancellationToken)` |
-| `IRequestPostProcessor<TRequest, TResponse>` (Task-based) | Back in 2.1 with `ValueTask` and actually invoked: `ValueTask Process(TRequest, TResponse, CancellationToken)` |
+| `IRequestPreProcessor<TRequest>` (Task-based, never invoked) | Redesigned in 2.0 and actually invoked: `ValueTask Process(TRequest, CancellationToken)` |
+| `IRequestPostProcessor<TRequest, TResponse>` (Task-based, never invoked) | Redesigned in 2.0 and actually invoked: `ValueTask Process(TRequest, TResponse, CancellationToken)` |
 | `Unit` | `ICommand` (no response) returns `Result` |
 | `PulseFlow.Application.Validation.ValidationException` | Validation failures are returned as `Error.Validation(...)`, not thrown |
 

@@ -11,8 +11,8 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>1591</NoWarn>
-        <!-- tests/ and integrations/ live under this folder: keep their sources out of the core library. -->
-        <DefaultItemExcludes>$(DefaultItemExcludes);tests/**;integrations/**</DefaultItemExcludes>
+        <!-- tests/, integrations/ and benchmarks/ live under this folder: keep their sources out of the core library. -->
+        <DefaultItemExcludes>$(DefaultItemExcludes);tests/**;integrations/**;benchmarks/**</DefaultItemExcludes>
         <PackageReleaseNotes>
             2.0.0: ICommand&lt;TResponse&gt;, typed Error and richer Result (with JSON support), command-only and query-only pipeline behaviors, ValueTask end to end, sequential Publish by default. Only Microsoft.Extensions.*.Abstractions dependencies; FluentValidation moved to the PulseFlow.FluentValidation package. Breaking changes: see CHANGELOG.md.
         </PackageReleaseNotes>

@@ -9,10 +9,6 @@ namespace PulseFlow.Application.Mediator;
 /// </summary>
 public sealed class MediatorOptions
 {
-    // Per container: which (request, response) pipelines are known to have no behaviors / processors,
-    // so they are not resolved from DI again on every request.
-    private readonly ConcurrentDictionary<Type, bool> _emptyPipelines = new();
-
     /// <summary>
     /// How <see cref="IMediator.Publish{TNotification}"/> runs notification handlers.
     /// Defaults to <c>PublishStrategy.Sequential</c>, which is safe with scoped
@@ -34,7 +30,11 @@ public sealed class MediatorOptions
     /// </summary>
     public ServiceLifetime MediatorLifetime { get; set; } = ServiceLifetime.Scoped;
 
-    internal bool IsKnownEmpty(Type pipeline) => _emptyPipelines.TryGetValue(pipeline, out var empty) && empty;
-
-    internal void Remember(Type pipeline, bool empty) => _emptyPipelines.TryAdd(pipeline, empty);
+    // Per container dispatch plans, one per request type: the wrapper that invokes the handler plus what it has learned
+    // about the pipeline of that request in this container (e.g. "no behaviors"). One dictionary lookup per call.
+    // (Notifications keep a static cache in Mediator: their wrappers have no per-container state.)
+    internal ConcurrentDictionary<Type, object> CommandPlans { get; } = new();
+    internal ConcurrentDictionary<Type, object> CommandWithResponsePlans { get; } = new();
+    internal ConcurrentDictionary<Type, object> QueryPlans { get; } = new();
+    internal ConcurrentDictionary<Type, object> StreamPlans { get; } = new();
 }

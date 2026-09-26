@@ -136,7 +136,8 @@ builder.Services.AddMediator(o =>
 
 `AddMediator` scans the given assemblies and registers every `ICommandHandler<>`, `ICommandHandler<,>`,
 `IQueryHandler<,>`, `IStreamQueryHandler<,>`, `INotificationHandler<>`, `IDomainEventHandler<>` and `IRequestValidator<>`,
-plus `IMediator` and `IDomainEventDispatcher`. It is safe to call more than once. Prefer passing assemblies explicitly:
+plus `IMediator` (also exposed as `ISender` for commands/queries and `IPublisher` for notifications) and
+`IDomainEventDispatcher`. It is safe to call more than once. Prefer passing assemblies explicitly:
 the parameterless overload only scans assemblies already loaded. Open generic handler classes are skipped (register them manually).
 
 ```csharp
@@ -180,12 +181,13 @@ There are three kinds of behavior, all with the same shape:
 
 | Contract | Runs for | Register with |
 |---|---|---|
-| `IPipelineBehavior<TRequest, TResponse>` | every command and query | `services.AddPipelineBehavior(typeof(X<,>))` |
+| `IPipelineBehavior<TRequest, TResponse>` | every command and query | `services.AddPipelineBehavior(typeof(X<,>))` (optionally with a `ServiceLifetime`) |
 | `ICommandPipelineBehavior<TCommand, TResponse>` | commands only | `services.AddCommandBehavior(typeof(X<,>))` |
 | `IQueryPipelineBehavior<TQuery, TResponse>` | queries only | `services.AddQueryBehavior(typeof(X<,>))` |
 | `IRequestPreProcessor<TRequest>` | before the handler | closed types: scanned; open: `services.AddRequestPreProcessor(typeof(X<>))` |
 | `IRequestPostProcessor<TRequest, TResponse>` | after the handler (also on failed results) | closed types: scanned; open: `services.AddRequestPostProcessor(typeof(X<,>))` |
 | `IStreamPipelineBehavior<TRequest, TResponse>` | stream queries | `services.AddStreamBehavior(typeof(X<,>))` |
+| `IRequestExceptionHandler<TRequest, TResponse>` | when the handler throws: return a response instead (e.g. a typed `Error`) or let it propagate | closed types: scanned; open: `services.AddRequestExceptionHandler(typeof(X<,>))` |
 
 Order: general behaviors (outermost, in registration order) → command/query behaviors → pre-processors → handler →
 post-processors. Pipelines without behaviors or processors cost nothing: PulseFlow remembers per container which
@@ -318,11 +320,68 @@ Step-by-step guide with before/after examples: **[MIGRATION.md](MIGRATION.md)**.
 -   Validation failures are returned as `Error.ValidationErrors` instead of a JSON string.
 -   `IValidator<T>`, `ValidationResult` and `ValidationFailure` were renamed to `IRequestValidator<T>`, `RequestValidationResult`
     and `ValidationError` (no more name clashes with FluentValidation). `ValidationException` was removed.
--   `IRequestPreProcessor`, `IRequestPostProcessor` and `Unit` were removed (they were never invoked); pre/post processing
-    will come back as a supported feature in a 2.x release.
+-   `IRequestPreProcessor` / `IRequestPostProcessor` were redesigned (`ValueTask`, and now actually invoked by the pipeline);
+    `Unit` was removed.
 -   FluentValidation support moved to the `PulseFlow.FluentValidation` package (`AddFluentValidationIntegration()` keeps its
     name and namespace); the core package no longer depends on FluentValidation.
 -   `Publish` is sequential by default; `Result<T>.Value` throws on failure; `ValueObject` equality includes the type.
+
+## Benchmarks
+
+`benchmarks/PulseFlow.Benchmarks` compares PulseFlow with MediatR 14 and Mediator 3 (source generator) on the same
+workloads, each library with its default configuration. Latest run (2.1.0-preview.2, Ryzen 5 3600, .NET 10):
+
+| Scenario | PulseFlow | MediatR | Mediator (source gen) |
+|---|---|---|---|
+| Send | **39 ns** · 56 B | 71 ns · 128 B | 11 ns · 0 B |
+| Send + 2 behaviors | **120 ns** · 384 B (singleton behaviors: **88 ns** · 272 B) | 159 ns · 512 B | 18 ns · 0 B |
+| Publish to 2 handlers | **65 ns** · 88 B | 326 ns · 1,008 B | 14 ns · 0 B |
+| Stream 10 items | **200 ns** · 208 B | 485 ns · 576 B | 181 ns · 184 B |
+| Cold start (new process, register + first send) | **46 ms** · 39 KB | 78 ms · 284 KB | 37 ms · 40 KB |
+
+- Faster than MediatR, with less memory, in every scenario: 1.8x on send, 1.3–1.8x with behaviors, 5x on publish,
+  2.4x on streams and 1.7x on cold start. Stateless behaviors can be registered as singletons
+  (`AddPipelineBehavior(type, ServiceLifetime.Singleton)`) for the fastest pipeline.
+- Mediator is faster: it generates the dispatch code at compile time. Closing that gap is the goal of PulseFlow 3.0.
+- The numbers are the mediator's own overhead (handlers do no work). In a request that queries a database (1–5 ms)
+  the difference between any of the three is well below 0.01%.
+
+Full tables, methodology and how to run them: [benchmarks/README.md](benchmarks/README.md).
+
+## PulseFlow or Mediator?
+
+[Mediator](https://github.com/martinothamar/Mediator) is an excellent library and it is faster: it generates the
+dispatch code at compile time (see the benchmarks above). PulseFlow makes a different trade-off. It is not the fastest
+mediator; it is the one that covers the most of a CQRS application with the least glue code, while staying faster
+than MediatR.
+
+**What PulseFlow gives you that Mediator does not:**
+
+- **Typed outcomes.** Handlers return `Result` / `Result<T>` with an `Error` (code, message, `ErrorType`,
+  validation errors), `Match` / `Map` / `Bind` and JSON support. Mediator returns whatever the handler returns; how
+  failures are represented is left to each application.
+- **Validation in the pipeline.** Validators run before the handler and a failure comes back as a typed
+  `Validation` error, never as an exception (PulseFlow validators or FluentValidation with async rules).
+- **ASP.NET Core in one line.** `MapCommand` / `MapQuery` endpoints and automatic `Error` → RFC 9457 ProblemDetails
+  with the right status code (`PulseFlow.AspNetCore`). With Mediator every endpoint maps results by hand.
+- **Telemetry that knows about business failures.** Spans and metrics tag the outcome as `success`, `failure` (with
+  the `ErrorType`) or `exception`, so a `NotFound` does not look like a crash in your dashboards. This is possible
+  because PulseFlow understands the `Result` a handler returns.
+- **CQRS-specific behaviors.** `ICommandPipelineBehavior` and `IQueryPipelineBehavior` with registration helpers,
+  so "transactions only for commands" or "caching only for queries" is one line.
+- **DDD building blocks.** `Entity`, `AggregateRoot`, `ValueObject` and a domain event dispatcher in the same package.
+- **Plain reflection, no source generator.** Handlers can live in any project of the solution and there is no
+  generated code or generator placement rule to manage. Scoped handlers by default, safe with an EF Core `DbContext`.
+
+**Choose Mediator instead when:**
+
+- dispatch cost is on your hot path (hundreds of thousands of in-process messages per second);
+- you need **Native AOT** or trimming, or compile-time errors for missing handlers (PulseFlow's source generator is
+  planned for 3.0);
+- maturity matters most: Mediator has millions of downloads and a long track record.
+
+For a typical web API, the dispatch difference (tens of nanoseconds) disappears next to a single database call, and
+the features above are what save time every day.
 
 ## Design Principles
 

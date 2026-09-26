@@ -6,31 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased] - 2.2.0-preview.1
+## [Unreleased] - 2.1.0
 
 ### Added
-- Built-in observability with the standard .NET APIs (no new dependency):
-  - `ActivitySource` "PulseFlow": one span per command, query, notification and stream (`command CreateOrder`, ...), nested under the current activity, with `pulseflow.request.kind`, `pulseflow.request.type`, `pulseflow.outcome`, `error.type`, `pulseflow.error.code` and `pulseflow.stream.items` tags. Exceptions mark the span as error; failed `Result`s are tagged but not marked as errors.
-  - `Meter` "PulseFlow" with the `pulseflow.request.duration` histogram (seconds).
-  - `PulseFlowDiagnostics` constants to register them: `AddSource(PulseFlowDiagnostics.ActivitySourceName)`, `AddMeter(PulseFlowDiagnostics.MeterName)`.
-  - When no listener is attached the mediator keeps its uninstrumented fast path (no allocations added).
+- `ISender` (commands, queries, streams) and `IPublisher` (notifications). `IMediator` implements both and `AddMediator` registers them with the mediator lifetime. Binary compatible with 2.0.
+- `IRequestExceptionHandler<TRequest, TResponse>` and `ExceptionHandlingResult<TResponse>`: turn exceptions thrown by a handler into a response (e.g. a typed `Error.Conflict`) or let them propagate. Caller cancellations are never passed to them. Discovered by `AddMediator`; open generic ones registered with `AddRequestExceptionHandler`.
+- `AddPipelineBehavior`, `AddCommandBehavior` and `AddQueryBehavior` overloads with a `ServiceLifetime`, so stateless behaviors can be singletons.
+- Performance: dispatch plans are now kept per container, one per request type, together with what they learned about its pipeline (no behaviors, no processors). A call costs one dictionary lookup instead of two, pipelines with behaviors no longer look up their cached facts in a dictionary, the outermost behavior is invoked without an extra delegate, and publishing to a single handler skips the strategy machinery.
+- Performance: once a request is known to have no behaviors, processors nor exception handlers in a container, dispatch takes a single cache lookup before calling the handler; general and command/query-specific behavior lists are cached independently (a pipeline with only general behaviors no longer resolves an empty specific list on every call); `Publish` no longer copies the handler array.
+- `benchmarks/PulseFlow.Benchmarks`: BenchmarkDotNet comparison with MediatR 14 and Mediator 3 (send, send + behaviors, publish, stream, startup) with time, ratio, rank, GC and allocation metrics; markdown/HTML/JSON exports. CI runs it as a dry smoke test and the `Benchmarks` workflow runs it on demand.
 
-## [2.1.0-preview.1]
-
-### Added
-- New package **PulseFlow.AspNetCore**:
-  - `MapCommand<TCommand>`, `MapCommand<TCommand, TResponse>` (optional `201 Created` with `Location`) and `MapQuery<TQuery, TResponse>` minimal API endpoints. POST/PUT/PATCH bind the JSON body; GET/DELETE bind route and query string. They return `RouteHandlerBuilder` and declare OpenAPI response metadata.
-  - `Result.ToHttpResult()`, `Result<T>.ToHttpResult()`, `ToCreatedHttpResult(location)` and `Error.ToHttpResult()` for hand-written endpoints.
-  - Errors become RFC 9457 ProblemDetails (`HttpValidationProblemDetails` for validation) with `errorCode` / `errorType` extensions, written through `IProblemDetailsService` when `AddProblemDetails()` is registered.
-  - `AddPulseFlowHttp(options)` to customize the status code per `ErrorType` and the extensions.
-- `IRequestPreProcessor<TRequest>` and `IRequestPostProcessor<TRequest, TResponse>` (`ValueTask`), run around the handler inside the behaviors. Closed implementations are discovered by `AddMediator`; open generic ones are registered with `AddRequestPreProcessor` / `AddRequestPostProcessor`.
-- `IStreamPipelineBehavior<TRequest, TResponse>` and `StreamHandlerDelegate<TResponse>` for stream queries, registered with `AddStreamBehavior`.
-- `MediatorOptions.HandlerLifetime` (default `Transient`) and `MediatorOptions.MediatorLifetime` (default `Scoped`).
-
-### Changed
-- Performance: requests whose pipeline has no behaviors or processors are remembered per container, so later calls skip resolving them from DI and go straight to the handler.
-
-## [2.0.0-preview.2] - 2026-09-26
+## [2.0.0] - 2026-09-26
 
 Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 
@@ -40,6 +26,7 @@ Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 - Source Link, embedded untracked sources, `.snupkg` symbol packages, deterministic and CI builds, package validation across target frameworks.
 - Shared package metadata in `Directory.Build.props`; repository URLs now point to github.com/ffamaximus/PulseFlow.
 - GitHub Actions: `ci.yml` (build + tests on Linux and Windows for net8.0/net9.0/net10.0, packs on every push) and `release.yml` (publishes both packages to NuGet when a `v*` tag is pushed).
+- New package **PulseFlow.AspNetCore** (see Added).
 
 ### Added
 - `ICommand<TResponse>` / `ICommandHandler<TCommand, TResponse>`: commands that return a value (e.g. the id of a created entity).
@@ -53,6 +40,19 @@ Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 - `IDomainEventDispatcher` interface; `DispatchAsync` now accepts a `CancellationToken`.
 - `Result<T>.ValueOrDefault`.
 - Test project `tests/PulseFlow.Tests` (xUnit, net8.0/net9.0/net10.0).
+- New package **PulseFlow.AspNetCore**:
+  - `MapCommand<TCommand>`, `MapCommand<TCommand, TResponse>` (optional `201 Created` with `Location`) and `MapQuery<TQuery, TResponse>` minimal API endpoints. POST/PUT/PATCH bind the JSON body; GET/DELETE bind route and query string. They return `RouteHandlerBuilder` and declare OpenAPI response metadata.
+  - `Result.ToHttpResult()`, `Result<T>.ToHttpResult()`, `ToCreatedHttpResult(location)` and `Error.ToHttpResult()` for hand-written endpoints.
+  - Errors become RFC 9457 ProblemDetails (`HttpValidationProblemDetails` for validation) with `errorCode` / `errorType` extensions, written through `IProblemDetailsService` when `AddProblemDetails()` is registered.
+  - `AddPulseFlowHttp(options)` to customize the status code per `ErrorType` and the extensions.
+- `IRequestPreProcessor<TRequest>` and `IRequestPostProcessor<TRequest, TResponse>` (`ValueTask`), run around the handler inside the behaviors. Closed implementations are discovered by `AddMediator`; open generic ones are registered with `AddRequestPreProcessor` / `AddRequestPostProcessor`.
+- `IStreamPipelineBehavior<TRequest, TResponse>` and `StreamHandlerDelegate<TResponse>` for stream queries, registered with `AddStreamBehavior`.
+- `MediatorOptions.HandlerLifetime` (default `Transient`) and `MediatorOptions.MediatorLifetime` (default `Scoped`).
+- Built-in observability with the standard .NET APIs (no new dependency):
+  - `ActivitySource` "PulseFlow": one span per command, query, notification and stream (`command CreateOrder`, ...), nested under the current activity, with `pulseflow.request.kind`, `pulseflow.request.type`, `pulseflow.outcome`, `error.type`, `pulseflow.error.code` and `pulseflow.stream.items` tags. Exceptions mark the span as error; failed `Result`s are tagged but not marked as errors.
+  - `Meter` "PulseFlow" with the `pulseflow.request.duration` histogram (seconds).
+  - `PulseFlowDiagnostics` constants to register them: `AddSource(PulseFlowDiagnostics.ActivitySourceName)`, `AddMeter(PulseFlowDiagnostics.MeterName)`.
+  - When no listener is attached the mediator keeps its uninstrumented fast path (no allocations added).
 
 ### Changed
 - **Breaking:** handlers, behaviors, notification and domain event handlers use `ValueTask` instead of `Task`; `IMediator.Send`/`Publish` return `ValueTask`.
@@ -61,7 +61,7 @@ Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 - **Breaking:** `IMediator.CreateStream(query)` returns `IAsyncEnumerable<T>` directly (replaces `Task<IAsyncEnumerable<T>> Send(streamQuery)`).
 - **Breaking:** validation behaviors return `Error.Validation(failures)` instead of a JSON string, and require `Result`/`Result<T>` responses.
 - **Breaking:** `IValidator<T>` → `IRequestValidator<T>`, `ValidationResult` → `RequestValidationResult`, `ValidationFailure` → `ValidationError` (record); `Error.ValidationFailures` → `Error.ValidationErrors`. Avoids ambiguous references when FluentValidation is imported in the same file.
-- **Breaking (removed):** `IRequestPreProcessor`, `IRequestPostProcessor`, `Unit` and `ValidationException` were public but never used by the pipeline.
+- **Breaking (removed):** `Unit` and `ValidationException` were public but never used by the pipeline. `IRequestPreProcessor` / `IRequestPostProcessor` were redesigned: `ValueTask`-based and actually invoked by the pipeline (see Added).
 - `FluentValidationBehavior` uses the FluentValidation API directly and validates asynchronously (`MustAsync` rules no longer throw).
 - No delegate allocation when a request has no behaviors.
 - `ExceptionBehavior` no longer logs cancellations as errors; `PerformanceBehavior` also measures failed requests.
@@ -70,6 +70,7 @@ Upgrading from 1.x? See [MIGRATION.md](MIGRATION.md).
 - **Breaking:** `ValueObject` equality now also compares the concrete type; added `==`, `!=` and `IEquatable<ValueObject>`.
 - `AddMediator` also scans `IStreamQueryHandler<,>`, `INotificationHandler<>` and `IDomainEventHandler<>`, registers `IDomainEventDispatcher`, uses `TryAdd*` (idempotent) and skips open generic handler classes.
 - `DomainEventDispatcher` uses cached typed wrappers instead of `dynamic`.
+- Performance: requests whose pipeline has no behaviors or processors are remembered per container, so later calls skip resolving them from DI and go straight to the handler.
 
 ### Fixed
 - `Publish` with `Parallel`: a handler throwing synchronously prevented the remaining handlers from starting.

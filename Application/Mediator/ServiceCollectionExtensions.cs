@@ -21,7 +21,8 @@ public static class ServiceCollectionExtensions
         typeof(IDomainEventHandler<>),
         typeof(IRequestValidator<>),
         typeof(IRequestPreProcessor<>),
-        typeof(IRequestPostProcessor<,>)
+        typeof(IRequestPostProcessor<,>),
+        typeof(IRequestExceptionHandler<,>)
     ];
 
     /// <summary>
@@ -29,7 +30,7 @@ public static class ServiceCollectionExtensions
     /// <see cref="ICommandHandler{TCommand}"/>, <see cref="ICommandHandler{TCommand,TResponse}"/>, <see cref="IQueryHandler{TQuery,TResponse}"/>,
     /// <see cref="IStreamQueryHandler{TQuery,TResponse}"/>, <see cref="INotificationHandler{TNotification}"/>,
     /// <see cref="IDomainEventHandler{TEvent}"/>, <see cref="IRequestValidator{T}"/>, <see cref="IRequestPreProcessor{TRequest}"/>
-    /// and <see cref="IRequestPostProcessor{TRequest,TResponse}"/>.
+    /// <see cref="IRequestPostProcessor{TRequest,TResponse}"/> and <see cref="IRequestExceptionHandler{TRequest,TResponse}"/>.
     /// Usage in Program.cs: <c>services.AddMediator(typeof(AnyTypeInAssembly).Assembly)</c>.
     /// </summary>
     public static IServiceCollection AddMediator(this IServiceCollection services, params Assembly[]? assemblies)
@@ -63,6 +64,8 @@ public static class ServiceCollectionExtensions
 
         // Scoped by default so handlers can use scoped dependencies; see MediatorOptions.MediatorLifetime.
         services.TryAdd(new ServiceDescriptor(typeof(IMediator), typeof(Mediator), options.MediatorLifetime));
+        services.TryAdd(new ServiceDescriptor(typeof(ISender), sp => sp.GetRequiredService<IMediator>(), options.MediatorLifetime));
+        services.TryAdd(new ServiceDescriptor(typeof(IPublisher), sp => sp.GetRequiredService<IMediator>(), options.MediatorLifetime));
 
         services.TryAddScoped<DomainEventDispatcher>();
         services.TryAddScoped<IDomainEventDispatcher>(sp => sp.GetRequiredService<DomainEventDispatcher>());
@@ -103,11 +106,22 @@ public static class ServiceCollectionExtensions
         => services.AddBehavior(typeof(IPipelineBehavior<,>), openBehaviorType);
 
     /// <summary>
+    /// Same as <see cref="AddPipelineBehavior(IServiceCollection, Type)"/> with an explicit lifetime. Stateless behaviors
+    /// (logging, validation, metrics) can be <see cref="ServiceLifetime.Singleton"/>, which avoids creating them on every request.
+    /// </summary>
+    public static IServiceCollection AddPipelineBehavior(this IServiceCollection services, Type openBehaviorType, ServiceLifetime lifetime)
+        => services.AddBehavior(typeof(IPipelineBehavior<,>), openBehaviorType, lifetime);
+
+    /// <summary>
     /// Registers an open generic <see cref="ICommandPipelineBehavior{TCommand,TResponse}"/> that runs only for commands
     /// (e.g. a transaction behavior).
     /// </summary>
     public static IServiceCollection AddCommandBehavior(this IServiceCollection services, Type openBehaviorType)
         => services.AddBehavior(typeof(ICommandPipelineBehavior<,>), openBehaviorType);
+
+    /// <summary>Same as <see cref="AddCommandBehavior(IServiceCollection, Type)"/> with an explicit lifetime.</summary>
+    public static IServiceCollection AddCommandBehavior(this IServiceCollection services, Type openBehaviorType, ServiceLifetime lifetime)
+        => services.AddBehavior(typeof(ICommandPipelineBehavior<,>), openBehaviorType, lifetime);
 
     /// <summary>
     /// Registers an open generic <see cref="IQueryPipelineBehavior{TQuery,TResponse}"/> that runs only for queries
@@ -115,6 +129,10 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddQueryBehavior(this IServiceCollection services, Type openBehaviorType)
         => services.AddBehavior(typeof(IQueryPipelineBehavior<,>), openBehaviorType);
+
+    /// <summary>Same as <see cref="AddQueryBehavior(IServiceCollection, Type)"/> with an explicit lifetime.</summary>
+    public static IServiceCollection AddQueryBehavior(this IServiceCollection services, Type openBehaviorType, ServiceLifetime lifetime)
+        => services.AddBehavior(typeof(IQueryPipelineBehavior<,>), openBehaviorType, lifetime);
 
     /// <summary>
     /// Registers an open generic <see cref="IStreamPipelineBehavior{TRequest,TResponse}"/> (e.g. <c>typeof(MyStreamBehavior&lt;,&gt;)</c>)
@@ -137,7 +155,15 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddRequestPostProcessor(this IServiceCollection services, Type openProcessorType)
         => services.AddBehavior(typeof(IRequestPostProcessor<,>), openProcessorType);
 
-    private static IServiceCollection AddBehavior(this IServiceCollection services, Type contract, Type openBehaviorType)
+    /// <summary>
+    /// Registers an open generic <see cref="IRequestExceptionHandler{TRequest,TResponse}"/> (e.g. <c>typeof(ConcurrencyToConflict&lt;,&gt;)</c>)
+    /// for every command and query. Closed exception handlers are discovered by <c>AddMediator</c>.
+    /// </summary>
+    public static IServiceCollection AddRequestExceptionHandler(this IServiceCollection services, Type openHandlerType)
+        => services.AddBehavior(typeof(IRequestExceptionHandler<,>), openHandlerType);
+
+    private static IServiceCollection AddBehavior(this IServiceCollection services, Type contract, Type openBehaviorType,
+        ServiceLifetime lifetime = ServiceLifetime.Transient)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(openBehaviorType);
@@ -151,7 +177,7 @@ public static class ServiceCollectionExtensions
         if (!openBehaviorType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == contract))
             throw new ArgumentException($"'{openBehaviorType.Name}' does not implement {contract.Name}.", nameof(openBehaviorType));
 
-        services.TryAddEnumerable(ServiceDescriptor.Transient(contract, openBehaviorType));
+        services.TryAddEnumerable(new ServiceDescriptor(contract, openBehaviorType, lifetime));
         return services;
     }
 

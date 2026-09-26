@@ -91,6 +91,25 @@ public class ProcessorAndStreamTests
     }
 
     [Fact]
+    public async Task Behaviors_can_be_registered_as_singletons()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new Probe());
+        services.AddMediator(typeof(ProcessorAndStreamTests).Assembly);
+        services.AddPipelineBehavior(typeof(GeneralBehavior<,>), ServiceLifetime.Singleton);
+
+        Assert.Equal(ServiceLifetime.Singleton,
+            services.Single(d => d.ServiceType == typeof(IPipelineBehavior<,>)).Lifetime);
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        var probe = scope.ServiceProvider.GetRequiredService<Probe>();
+        await scope.ServiceProvider.GetRequiredService<IMediator>().Send(new CreateThing("a"));
+
+        Assert.Contains("general:CreateThing", probe.Calls);
+    }
+
+    [Fact]
     public void Default_lifetimes_are_unchanged()
     {
         var services = new ServiceCollection();

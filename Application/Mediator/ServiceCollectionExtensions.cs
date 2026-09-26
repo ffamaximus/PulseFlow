@@ -19,14 +19,17 @@ public static class ServiceCollectionExtensions
         typeof(IStreamQueryHandler<,>),
         typeof(INotificationHandler<>),
         typeof(IDomainEventHandler<>),
-        typeof(IRequestValidator<>)
+        typeof(IRequestValidator<>),
+        typeof(IRequestPreProcessor<>),
+        typeof(IRequestPostProcessor<,>)
     ];
 
     /// <summary>
     /// Registers the Mediator and scans the provided assemblies for implementations of
     /// <see cref="ICommandHandler{TCommand}"/>, <see cref="ICommandHandler{TCommand,TResponse}"/>, <see cref="IQueryHandler{TQuery,TResponse}"/>,
     /// <see cref="IStreamQueryHandler{TQuery,TResponse}"/>, <see cref="INotificationHandler{TNotification}"/>,
-    /// <see cref="IDomainEventHandler{TEvent}"/> and <see cref="IRequestValidator{T}"/>.
+    /// <see cref="IDomainEventHandler{TEvent}"/>, <see cref="IRequestValidator{T}"/>, <see cref="IRequestPreProcessor{TRequest}"/>
+    /// and <see cref="IRequestPostProcessor{TRequest,TResponse}"/>.
     /// Usage in Program.cs: <c>services.AddMediator(typeof(AnyTypeInAssembly).Assembly)</c>.
     /// </summary>
     public static IServiceCollection AddMediator(this IServiceCollection services, params Assembly[]? assemblies)
@@ -58,8 +61,8 @@ public static class ServiceCollectionExtensions
         var options = GetOrAddOptions(services);
         configure?.Invoke(options);
 
-        // Registered as Scoped to allow the use of Scoped dependencies within Handlers
-        services.TryAddScoped<IMediator, Mediator>();
+        // Scoped by default so handlers can use scoped dependencies; see MediatorOptions.MediatorLifetime.
+        services.TryAdd(new ServiceDescriptor(typeof(IMediator), typeof(Mediator), options.MediatorLifetime));
 
         services.TryAddScoped<DomainEventDispatcher>();
         services.TryAddScoped<IDomainEventDispatcher>(sp => sp.GetRequiredService<DomainEventDispatcher>());
@@ -83,8 +86,8 @@ public static class ServiceCollectionExtensions
 
                     // TryAddEnumerable skips an identical (service, implementation) pair, so calling
                     // AddMediator twice, or scanning the same assembly twice, never duplicates handlers.
-                    // Handlers are Transient; their dependencies follow the scope that resolves the Mediator.
-                    services.TryAddEnumerable(ServiceDescriptor.Transient(contract, type));
+                    // Lifetime: MediatorOptions.HandlerLifetime (Transient by default).
+                    services.TryAddEnumerable(new ServiceDescriptor(contract, type, options.HandlerLifetime));
                 }
             }
         }
@@ -113,13 +116,37 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddQueryBehavior(this IServiceCollection services, Type openBehaviorType)
         => services.AddBehavior(typeof(IQueryPipelineBehavior<,>), openBehaviorType);
 
+    /// <summary>
+    /// Registers an open generic <see cref="IStreamPipelineBehavior{TRequest,TResponse}"/> (e.g. <c>typeof(MyStreamBehavior&lt;,&gt;)</c>)
+    /// that wraps every stream query.
+    /// </summary>
+    public static IServiceCollection AddStreamBehavior(this IServiceCollection services, Type openBehaviorType)
+        => services.AddBehavior(typeof(IStreamPipelineBehavior<,>), openBehaviorType);
+
+    /// <summary>
+    /// Registers an open generic <see cref="IRequestPreProcessor{TRequest}"/> (e.g. <c>typeof(AuditPreProcessor&lt;&gt;)</c>)
+    /// that runs before every command and query handler. Closed pre-processors are discovered by <c>AddMediator</c>.
+    /// </summary>
+    public static IServiceCollection AddRequestPreProcessor(this IServiceCollection services, Type openProcessorType)
+        => services.AddBehavior(typeof(IRequestPreProcessor<>), openProcessorType);
+
+    /// <summary>
+    /// Registers an open generic <see cref="IRequestPostProcessor{TRequest,TResponse}"/> (e.g. <c>typeof(AuditPostProcessor&lt;,&gt;)</c>)
+    /// that runs after every command and query handler. Closed post-processors are discovered by <c>AddMediator</c>.
+    /// </summary>
+    public static IServiceCollection AddRequestPostProcessor(this IServiceCollection services, Type openProcessorType)
+        => services.AddBehavior(typeof(IRequestPostProcessor<,>), openProcessorType);
+
     private static IServiceCollection AddBehavior(this IServiceCollection services, Type contract, Type openBehaviorType)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(openBehaviorType);
 
-        if (!openBehaviorType.IsGenericTypeDefinition || openBehaviorType.GetGenericArguments().Length != 2)
-            throw new ArgumentException($"'{openBehaviorType}' must be an open generic type with two type parameters, e.g. typeof(MyBehavior<,>).", nameof(openBehaviorType));
+        var arity = contract.GetGenericArguments().Length;
+        if (!openBehaviorType.IsGenericTypeDefinition || openBehaviorType.GetGenericArguments().Length != arity)
+            throw new ArgumentException(
+                $"'{openBehaviorType}' must be an open generic type with {arity} type parameter(s), e.g. typeof(My{contract.Name.Split('`')[0].TrimStart('I')}<{new string(',', arity - 1)}>).",
+                nameof(openBehaviorType));
 
         if (!openBehaviorType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == contract))
             throw new ArgumentException($"'{openBehaviorType.Name}' does not implement {contract.Name}.", nameof(openBehaviorType));

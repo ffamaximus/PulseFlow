@@ -124,8 +124,13 @@ public sealed record ExportUsers : IStreamQuery<UserDto>;
 ```csharp
 builder.Services.AddMediator(typeof(CreateUserHandler).Assembly);
 
-// Optional: notification publish strategy (Sequential by default)
-// builder.Services.AddMediator(o => o.PublishStrategy = PublishStrategy.Parallel, typeof(CreateUserHandler).Assembly);
+// Optional settings
+builder.Services.AddMediator(o =>
+{
+    o.PublishStrategy = PublishStrategy.Parallel;          // default: Sequential
+    o.HandlerLifetime = ServiceLifetime.Scoped;            // default: Transient
+    o.MediatorLifetime = ServiceLifetime.Transient;        // default: Scoped
+}, typeof(CreateUserHandler).Assembly);
 ```
 
 `AddMediator` scans the given assemblies and registers every `ICommandHandler<>`, `ICommandHandler<,>`,
@@ -177,8 +182,13 @@ There are three kinds of behavior, all with the same shape:
 | `IPipelineBehavior<TRequest, TResponse>` | every command and query | `services.AddPipelineBehavior(typeof(X<,>))` |
 | `ICommandPipelineBehavior<TCommand, TResponse>` | commands only | `services.AddCommandBehavior(typeof(X<,>))` |
 | `IQueryPipelineBehavior<TQuery, TResponse>` | queries only | `services.AddQueryBehavior(typeof(X<,>))` |
+| `IRequestPreProcessor<TRequest>` | before the handler | closed types: scanned; open: `services.AddRequestPreProcessor(typeof(X<>))` |
+| `IRequestPostProcessor<TRequest, TResponse>` | after the handler (also on failed results) | closed types: scanned; open: `services.AddRequestPostProcessor(typeof(X<,>))` |
+| `IStreamPipelineBehavior<TRequest, TResponse>` | stream queries | `services.AddStreamBehavior(typeof(X<,>))` |
 
-Order: general behaviors (outermost, in registration order) → command/query behaviors → handler.
+Order: general behaviors (outermost, in registration order) → command/query behaviors → pre-processors → handler →
+post-processors. Pipelines without behaviors or processors cost nothing: PulseFlow remembers per container which
+requests have an empty pipeline and calls their handler directly.
 `TResponse` is always `Result` or `Result<T>`, so behaviors can use constraints instead of reflection:
 
 ```csharp
@@ -302,7 +312,6 @@ Step-by-step guide with before/after examples: **[MIGRATION.md](MIGRATION.md)**.
 ## Roadmap
 
 -   **Source generator:** reflection-free dispatch, Native AOT support and compile-time diagnostics (missing or duplicate handlers).
--   **Pre/post processors, exception handlers and stream pipeline behaviors.**
 -   **Observability:** OpenTelemetry traces and metrics.
 -   **Domain events:** EF Core `SaveChanges` interceptor and outbox.
 

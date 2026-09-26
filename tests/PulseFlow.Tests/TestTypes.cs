@@ -142,6 +142,54 @@ public sealed class OutcomeBehavior<TRequest, TResponse>(Probe probe) : IPipelin
     }
 }
 
+// ---------- Processors and stream behaviors (2.1) ----------
+
+// Open generic: registered with AddRequestPreProcessor / AddRequestPostProcessor.
+public sealed class RecordingPreProcessor<TRequest>(Probe probe) : IRequestPreProcessor<TRequest>
+{
+    public ValueTask Process(TRequest request, CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"pre:{typeof(TRequest).Name}");
+        return ValueTask.CompletedTask;
+    }
+}
+
+public sealed class RecordingPostProcessor<TRequest, TResponse>(Probe probe) : IRequestPostProcessor<TRequest, TResponse>
+    where TResponse : Result
+{
+    public ValueTask Process(TRequest request, TResponse response, CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"post:{typeof(TRequest).Name}:{(response.IsSuccess ? "ok" : response.Error.Type.ToString())}");
+        return ValueTask.CompletedTask;
+    }
+}
+
+// Closed: discovered by AddMediator scanning.
+public sealed class GetThingPreProcessor(Probe probe) : IRequestPreProcessor<GetThing>
+{
+    public ValueTask Process(GetThing request, CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"scanned-pre:{request.Id}");
+        return ValueTask.CompletedTask;
+    }
+}
+
+public sealed class TakeTwoStreamBehavior<TRequest, TResponse>(Probe probe) : IStreamPipelineBehavior<TRequest, TResponse>
+{
+    public async IAsyncEnumerable<TResponse> Handle(TRequest request, StreamHandlerDelegate<TResponse> next,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        probe.Calls.Enqueue($"stream:{typeof(TRequest).Name}");
+        var count = 0;
+        await foreach (var item in next().WithCancellation(cancellationToken))
+        {
+            if (count++ == 2)
+                yield break;
+            yield return item;
+        }
+    }
+}
+
 // ---------- Notifications discovered by scanning ----------
 
 public sealed record ThingCreated(string Name) : INotification;

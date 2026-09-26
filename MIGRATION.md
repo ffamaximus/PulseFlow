@@ -292,8 +292,8 @@ These were public in 1.x but the pipeline never invoked them:
 
 | Removed | Replacement |
 |---|---|
-| `IRequestPreProcessor<TRequest>` | A pipeline behavior that runs code before `await next()` |
-| `IRequestPostProcessor<TRequest, TResponse>` | A pipeline behavior that runs code after `await next()` |
+| `IRequestPreProcessor<TRequest>` (Task-based) | Back in 2.1 with `ValueTask` and actually invoked: `ValueTask Process(TRequest, CancellationToken)` |
+| `IRequestPostProcessor<TRequest, TResponse>` (Task-based) | Back in 2.1 with `ValueTask` and actually invoked: `ValueTask Process(TRequest, TResponse, CancellationToken)` |
 | `Unit` | `ICommand` (no response) returns `Result` |
 | `PulseFlow.Application.Validation.ValidationException` | Validation failures are returned as `Error.Validation(...)`, not thrown |
 

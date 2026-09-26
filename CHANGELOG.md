@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Result.ToHttpResult()`, `Result<T>.ToHttpResult()`, `ToCreatedHttpResult(location)` and `Error.ToHttpResult()` for hand-written endpoints.
   - Errors become RFC 9457 ProblemDetails (`HttpValidationProblemDetails` for validation) with `errorCode` / `errorType` extensions, written through `IProblemDetailsService` when `AddProblemDetails()` is registered.
   - `AddPulseFlowHttp(options)` to customize the status code per `ErrorType` and the extensions.
+- `IRequestPreProcessor<TRequest>` and `IRequestPostProcessor<TRequest, TResponse>` (`ValueTask`), run around the handler inside the behaviors. Closed implementations are discovered by `AddMediator`; open generic ones are registered with `AddRequestPreProcessor` / `AddRequestPostProcessor`.
+- `IStreamPipelineBehavior<TRequest, TResponse>` and `StreamHandlerDelegate<TResponse>` for stream queries, registered with `AddStreamBehavior`.
+- `MediatorOptions.HandlerLifetime` (default `Transient`) and `MediatorOptions.MediatorLifetime` (default `Scoped`).
+
+### Changed
+- Performance: requests whose pipeline has no behaviors or processors are remembered per container, so later calls skip resolving them from DI and go straight to the handler.
 
 ## [2.0.0-preview.2] - 2026-09-26
 

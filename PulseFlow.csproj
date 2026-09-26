@@ -6,32 +6,30 @@
         <PackageId>PulseFlow</PackageId>
         <AssemblyName>PulseFlow</AssemblyName>
         <RootNamespace>PulseFlow</RootNamespace>
-        <Version>2.0.0-preview.1</Version>
-        <Authors>Andrés Mariño</Authors>
-        <Company>Andrés Mariño</Company>
         <Description>CQRS mediator for .NET 8, 9 and 10 with command/query-aware pipelines, typed Result and Error, ValueTask end to end, validation, notifications and DDD primitives (Entity, AggregateRoot, ValueObject, Domain Events).</Description>
         <PackageTags>clean-architecture;ddd;cqrs;mediator-pattern;result;kernel;architecture;domain-driven-design;mediator</PackageTags>
-        <RepositoryUrl>https://github.com/ffamaximus/clean-architecture-kernel-core</RepositoryUrl>
-        <RepositoryType>git</RepositoryType>
-        <PackageProjectUrl>https://github.com/ffamaximus/clean-architecture-kernel-core</PackageProjectUrl>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>1591</NoWarn>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <!-- tests/ lives under this folder: keep its sources out of the library build. -->
-        <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
-        <PackageIcon>icon.png</PackageIcon>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <!-- tests/ and integrations/ live under this folder: keep their sources out of the core library. -->
+        <DefaultItemExcludes>$(DefaultItemExcludes);tests/**;integrations/**</DefaultItemExcludes>
         <PackageReleaseNotes>
-            2.0.0: ICommand&lt;TResponse&gt;, typed Error and richer Result, command-only and query-only pipeline behaviors, ValueTask end to end, async FluentValidation, sequential Publish by default. Breaking changes: see CHANGELOG.md.
+            2.0.0: ICommand&lt;TResponse&gt;, typed Error and richer Result (with JSON support), command-only and query-only pipeline behaviors, ValueTask end to end, sequential Publish by default. Only Microsoft.Extensions.*.Abstractions dependencies; FluentValidation moved to the PulseFlow.FluentValidation package. Breaking changes: see CHANGELOG.md.
         </PackageReleaseNotes>
     </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="FluentValidation" Version="12.1.1" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
+    <!-- Only the abstractions, at the lowest version of each target framework: the application decides the actual version. -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>

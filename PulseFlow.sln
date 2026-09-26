@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow", "PulseFlow.cspr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow.Tests", "tests\PulseFlow.Tests\PulseFlow.Tests.csproj", "{6D4FCB15-C9F9-4D09-90E7-AFE7ACCB19B8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulseFlow.FluentValidation", "integrations\PulseFlow.FluentValidation\PulseFlow.FluentValidation.csproj", "{EBA9B8B2-DA40-4DCA-985A-CB814D86AB74}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{6D4FCB15-C9F9-4D09-90E7-AFE7ACCB19B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D4FCB15-C9F9-4D09-90E7-AFE7ACCB19B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6D4FCB15-C9F9-4D09-90E7-AFE7ACCB19B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EBA9B8B2-DA40-4DCA-985A-CB814D86AB74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EBA9B8B2-DA40-4DCA-985A-CB814D86AB74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EBA9B8B2-DA40-4DCA-985A-CB814D86AB74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EBA9B8B2-DA40-4DCA-985A-CB814D86AB74}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

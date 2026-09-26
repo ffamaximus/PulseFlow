@@ -1,4 +1,4 @@
-using PulseFlow.Application.Mediator;
+﻿using PulseFlow.Application.Mediator;
 using FV = FluentValidation;
 
 namespace PulseFlow.Application.Validation;

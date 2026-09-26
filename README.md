@@ -3,6 +3,7 @@
 
 [![NuGet Version](https://img.shields.io/nuget/v/PulseFlow.svg?style=flat-square)](https://www.nuget.org/packages/PulseFlow/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![CI](https://github.com/ffamaximus/PulseFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/ffamaximus/PulseFlow/actions/workflows/ci.yml)
 
 CQRS, mediator, typed results and DDD primitives for .NET 8, 9 and 10 — in one small, MIT-licensed package.
 
@@ -23,11 +24,16 @@ through the pipeline, every handler returns an explicit `Result` with a typed `E
 -   **Notifications:** sequential (default), parallel or stop-on-exception publishing.
 -   **DDD primitives:** `Entity<TId>`, `AggregateRoot<TId>`, `ValueObject`, `DomainEvent` and `IDomainEventDispatcher`.
 -   **Modern .NET:** targets .NET 8, 9 and 10.
+-   **Lean dependencies:** only `Microsoft.Extensions.DependencyInjection.Abstractions` and
+    `Microsoft.Extensions.Logging.Abstractions`, at the lowest version of each target framework. Source Link and symbol packages included.
 
 ## Installation
 
 ```bash
 dotnet add package PulseFlow
+
+# Optional: FluentValidation integration
+dotnet add package PulseFlow.FluentValidation
 ```
 
 ## Results and errors
@@ -178,7 +184,7 @@ builder.Services.AddCommandBehavior(typeof(TransactionBehavior<,>));
 ```
 
 To short-circuit with a failure, constrain `TResponse : IFailureFactory<TResponse>` and return
-`TResponse.CreateFailure(error)`. Built-in behaviors: `ValidationBehavior<,>`, `FluentValidationBehavior<,>`,
+`TResponse.CreateFailure(error)`. Built-in behaviors: `ValidationBehavior<,>`, `FluentValidationBehavior<,>` (in `PulseFlow.FluentValidation`),
 `ExceptionBehavior<,>` and `PerformanceBehavior<,>`.
 
 ## Validation
@@ -200,7 +206,7 @@ public sealed class CreateUserValidator : IRequestValidator<CreateUser>
 builder.Services.AddPipelineBehavior(typeof(ValidationBehavior<,>));
 ```
 
-With FluentValidation (async rules such as `MustAsync` are supported):
+With FluentValidation, through the `PulseFlow.FluentValidation` package (async rules such as `MustAsync` are supported):
 
 ```csharp
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>(); // FluentValidation.DependencyInjectionExtensions
@@ -262,6 +268,8 @@ order.ClearEvents();
     and `ValidationError` (no more name clashes with FluentValidation). `ValidationException` was removed.
 -   `IRequestPreProcessor`, `IRequestPostProcessor` and `Unit` were removed (they were never invoked); pre/post processing
     will come back as a supported feature in a 2.x release.
+-   FluentValidation support moved to the `PulseFlow.FluentValidation` package (`AddFluentValidationIntegration()` keeps its
+    name and namespace); the core package no longer depends on FluentValidation.
 -   `Publish` is sequential by default; `Result<T>.Value` throws on failure; `ValueObject` equality includes the type.
 
 ## Design Principles

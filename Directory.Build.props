@@ -1,0 +1,34 @@
+<Project>
+
+    <!-- Shared by every project in the repository (PulseFlow, PulseFlow.FluentValidation, tests). -->
+    <PropertyGroup>
+        <Version>2.0.0-preview.2</Version>
+        <Authors>Andrés Mariño</Authors>
+        <Company>Andrés Mariño</Company>
+        <Copyright>Copyright © Andrés Mariño</Copyright>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/ffamaximus/PulseFlow</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/ffamaximus/PulseFlow</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageIcon>icon.png</PackageIcon>
+
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <!-- Source Link is built into the .NET 8+ SDK: these make "Go to definition" and debugging step into the real sources. -->
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <Deterministic>true</Deterministic>
+
+        <!-- Checks at pack time that the public API is consistent across net8.0 / net9.0 / net10.0. -->
+        <EnablePackageValidation>true</EnablePackageValidation>
+    </PropertyGroup>
+
+    <!-- Reproducible builds on CI (normalizes source paths embedded in the PDBs). -->
+    <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+</Project>

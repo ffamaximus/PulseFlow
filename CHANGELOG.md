@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [Unreleased] - 2.0.0-preview.1
+## [Unreleased] - 2.0.0-preview.2
+
+### Packaging
+- New package **PulseFlow.FluentValidation** containing `FluentValidationBehavior` and `AddFluentValidationIntegration()` (same namespaces as before). The core package no longer depends on FluentValidation.
+- Core dependencies reduced to `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Logging.Abstractions`, at 8.0.0 / 9.0.0 / 10.0.0 per target framework (fixes NU1605 downgrade errors in apps pinned to 8.x or 9.x).
+- Source Link, embedded untracked sources, `.snupkg` symbol packages, deterministic and CI builds, package validation across target frameworks.
+- Shared package metadata in `Directory.Build.props`; repository URLs now point to github.com/ffamaximus/PulseFlow.
+- GitHub Actions: `ci.yml` (build + tests on Linux and Windows for net8.0/net9.0/net10.0, packs on every push) and `release.yml` (publishes both packages to NuGet when a `v*` tag is pushed).
 
 ### Added
 - `ICommand<TResponse>` / `ICommandHandler<TCommand, TResponse>`: commands that return a value (e.g. the id of a created entity).

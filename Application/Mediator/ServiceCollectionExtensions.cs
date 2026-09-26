@@ -93,14 +93,6 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers <see cref="FluentValidationBehavior{TRequest,TResponse}"/> so that the FluentValidation validators
-    /// registered in DI (e.g. with <c>AddValidatorsFromAssemblyContaining&lt;T&gt;()</c>) run, asynchronously, before
-    /// every command and query handler.
-    /// </summary>
-    public static IServiceCollection AddFluentValidationIntegration(this IServiceCollection services)
-        => services.AddPipelineBehavior(typeof(FluentValidationBehavior<,>));
-
-    /// <summary>
     /// Registers an open generic behavior (e.g. <c>typeof(LoggingBehavior&lt;,&gt;)</c>) that runs for every command and query.
     /// Behaviors run in registration order; general behaviors wrap the command/query-specific ones.
     /// </summary>

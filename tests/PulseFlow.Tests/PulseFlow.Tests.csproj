@@ -2,8 +2,6 @@
 
     <PropertyGroup>
         <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
@@ -22,8 +20,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Microsoft.Extensions.* come transitively from PulseFlow; referencing a lower version here would raise NU1605. -->
+        <!-- PulseFlow only references the DI abstractions; the tests need the real container. -->
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\..\PulseFlow.csproj" />
+        <ProjectReference Include="..\..\integrations\PulseFlow.FluentValidation\PulseFlow.FluentValidation.csproj" />
     </ItemGroup>
 
 </Project>
